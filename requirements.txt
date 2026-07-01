@@ -1,0 +1,10 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+PyGithub==2.5.0
+# Scanners (run via subprocess; pinned loosely so they pick up latest advisories)
+pip-audit==2.7.3
+bandit==1.8.0

@@ -1,0 +1,16 @@
+services:
+  pipeline:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data        # persist the SQLite store + runtime config across restarts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/metrics')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

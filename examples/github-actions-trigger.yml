@@ -1,0 +1,24 @@
+# Optional repo-native trigger for the remediation pipeline.
+#
+# Copy this into the target repository's .github/workflows/ to start the pipeline when an
+# issue is labelled, by forwarding the GitHub event to the running pipeline's webhook.
+# Set a repository secret PIPELINE_WEBHOOK_URL to the pipeline's public base URL
+# (e.g. an ngrok/Cloud URL). The webhook and scripts/simulate_event.py work without this.
+name: Devin remediation trigger
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  forward:
+    if: contains(fromJSON('["devin-triage","devin-remediate","devin-fix"]'), github.event.label.name)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Forward the labelled issue to the pipeline
+        env:
+          EVENT: ${{ toJSON(github.event) }}
+        run: |
+          curl -fsS -X POST "${{ secrets.PIPELINE_WEBHOOK_URL }}/webhook/github" \
+            -H "Content-Type: application/json" \
+            -d "$EVENT"

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "pip-audit:GHSA-7q25-qrjw-6fg2:py-lib",
+    "source": "pip-audit",
+    "severity": "critical",
+    "title": "Deserialization RCE in py-lib < 3.0.1",
+    "description": "py-lib below 3.0.1 deserializes untrusted input, allowing remote code execution. The project pins 2.9.0.",
+    "location": "py-lib==2.9.0",
+    "recommendation": "Upgrade py-lib to >=3.0.1 and run the test suite."
+  },
+  {
+    "id": "bandit:B608:superset/db/query_builder.py:142",
+    "source": "bandit",
+    "severity": "high",
+    "title": "B608 possible SQL injection via string-built query",
+    "description": "A query is assembled with string formatting that includes user-controlled input.",
+    "location": "superset/db/query_builder.py:142",
+    "recommendation": "Use parameterised queries; never interpolate user input into SQL."
+  },
+  {
+    "id": "github-issue:export-empty-frame",
+    "source": "bug-report",
+    "severity": "medium",
+    "title": "Chart export raises on an empty DataFrame instead of returning a 400",
+    "description": "Exporting a chart whose query yields no rows raises an unhandled exception. It should fail gracefully with a 400 and a clear message.",
+    "location": "superset/charts/export.py",
+    "recommendation": "Guard the empty-frame case and return a 400 with a clear message."
+  },
+  {
+    "id": "quality:skipped-tests:tests/integration/db_engine",
+    "source": "code-quality",
+    "severity": "low",
+    "title": "Integration tests skipped and never run in CI",
+    "description": "A block of database-engine integration tests is marked skip with no reason and is not exercised by CI, so regressions there go undetected.",
+    "location": "tests/integration/db_engine/",
+    "recommendation": "Determine whether the tests are still valid; re-enable or remove with justification."
+  }
+]

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calibrated Autonomy — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#F1F3F7; --surface:#FFFFFF; --border:#E2E7EE;
+    --ink:#0F141B; --muted:#525C6B; --faint:#6B7686;
+    --am:#0A7F57; --pr:#2358E6; --af:#B86209; --ho:#CF2E33;
+    --display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    --body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--body);
+       font-size:14px;-webkit-font-smoothing:antialiased}
+  .page{max-width:1140px;margin:0 auto;padding:34px 36px 40px}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:8px}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--display);font-size:28px;font-weight:600;letter-spacing:-.02em;margin:8px 0 8px}
+  .thesis{font-size:15px;color:var(--muted);max-width:720px;line-height:1.55}
+  .thesis b{color:var(--ink);font-weight:600}
+  .print-btn{font-family:var(--body);font-size:13px;font-weight:500;border:1px solid var(--border);
+       background:var(--surface);color:var(--muted);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+  .print-btn:hover{color:var(--ink);border-color:#CBD3DE}
+
+  .graph{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+         box-shadow:0 1px 2px rgba(15,20,27,.04),0 10px 26px rgba(15,20,27,.05);
+         padding:26px 22px;margin:22px 0 16px;overflow:auto}
+  .mermaid{display:flex;justify-content:center;font-family:var(--body)!important}
+  .mermaid .nodeLabel,.mermaid .edgeLabel{font-family:var(--body)!important}
+
+  .caption{display:flex;gap:26px;flex-wrap:wrap;color:var(--muted);font-size:13px;padding:0 4px}
+  .caption b{color:var(--ink);font-weight:600}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;padding:0 4px}
+  .legend .it{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
+  .legend .sw{width:11px;height:11px;border-radius:3px}
+
+  @media print{
+    @page{size:A4 landscape;margin:9mm}
+    body{background:#fff}
+    .page{max-width:none;padding:0}
+    .print-btn{display:none}
+    .graph{box-shadow:none;border:none;padding:6px 0}
+    h1{font-size:24px} .head{margin-bottom:2px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <div class="eyebrow">Forward-deployed build · Devin API</div>
+      <h1>Calibrated Autonomy</h1>
+      <p class="thesis">Triage and remediate an engineering backlog with Devin, at an autonomy level
+        matched to the risk of each change. The question isn't <b>"is the agent confident?"</b> — it's
+        <b>"how much human judgment does this change need?"</b></p>
+    </div>
+    <button class="print-btn" onclick="window.print()">Save as PDF</button>
+  </div>
+
+  <div class="graph">
+    <pre class="mermaid">
+flowchart LR
+  D["Discovery<br/>channels"] --> S{"Selection<br/>gate"}
+  S -->|"chosen to run"| T["Devin · Triage<br/>HITL score 0-100"]
+  T --> G{"Autonomy gate<br/>score → tier"}
+  G -->|"under 20"| AM["auto-merge"]
+  G -->|"20-69"| AP["auto-PR"]
+  G -->|"70-89"| AF["approve-first"]
+  G -->|"90+"| HO["human-only"]
+  AM --> R["Devin · Remediation<br/>fix · tests · PR · self-review"]
+  AP --> R
+  AF --> AV["Human<br/>approves"] --> R
+  HO --> ESC["Escalate<br/>to a human"]
+  R --> O[("Observability<br/>dashboard · PRs")]
+  ESC --> O
+
+  classDef devin fill:#E9F0FE,stroke:#2358E6,color:#173A86,stroke-width:1.5px;
+  classDef gate fill:#F3F5F9,stroke:#7C8798,color:#0F141B,stroke-width:1.5px;
+  classDef plain fill:#FFFFFF,stroke:#CDD6E2,color:#0F141B;
+  classDef am fill:#E6F2EC,stroke:#0A7F57,color:#0A5C3F,stroke-width:1.5px;
+  classDef ap fill:#E9F0FE,stroke:#2358E6,color:#173A86,stroke-width:1.5px;
+  classDef af fill:#FBF0E2,stroke:#B86209,color:#8A4A07,stroke-width:1.5px;
+  classDef ho fill:#FBE9EA,stroke:#CF2E33,color:#9E2327,stroke-width:1.5px;
+  classDef human fill:#F3F5F9,stroke:#7C8798,color:#3B4555;
+  classDef out fill:#E6F2EC,stroke:#0A7F57,color:#0A5C3F,stroke-width:1.5px;
+  class T,R devin; class S,G gate; class D plain;
+  class AM am; class AP ap; class AF af; class HO ho;
+  class AV,ESC human; class O out;
+    </pre>
+  </div>
+
+  <div class="caption">
+    <span><b>Two gates:</b> selection decides <i>what</i> runs; autonomy decides <i>how much oversight</i> each one needs.</span>
+    <span><b>Agent proposes, policy disposes.</b> Devin reports a score; the tier is set by the orchestrator, not the agent.</span>
+  </div>
+
+  <div class="legend">
+    <span class="it"><span class="sw" style="background:var(--am)"></span>auto-merge · under 20</span>
+    <span class="it"><span class="sw" style="background:var(--pr)"></span>auto-PR · 20-69</span>
+    <span class="it"><span class="sw" style="background:var(--af)"></span>approve-first · 70-89</span>
+    <span class="it"><span class="sw" style="background:var(--ho)"></span>human-only · 90+</span>
+  </div>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '14px',
+      lineColor: '#9AA3AE',
+      primaryColor: '#FFFFFF',
+      primaryBorderColor: '#E2E7EE',
+      primaryTextColor: '#0F141B'
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', nodeSpacing: 42, rankSpacing: 64, padding: 8 }
+  });
+</script>
+</body>
+</html>

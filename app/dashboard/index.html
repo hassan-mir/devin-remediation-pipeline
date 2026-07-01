@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Triage Console — Calibrated Autonomy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#F1F3F7; --surface:#FFFFFF; --surface-2:#F8FAFC; --border:#E2E7EE;
+    --ink:#0F141B; --muted:#525C6B; --faint:#5C6675;
+    --am:#0A7F57; --pr:#2358E6; --af:#B86209; --ho:#CF2E33;
+    --display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --r:14px; --shadow:0 1px 2px rgba(15,20,27,.04),0 10px 26px rgba(15,20,27,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--body);
+       font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--pr);text-decoration:none;font-weight:500} a:hover{text-decoration:underline}
+  .eyebrow{font-family:var(--body);font-size:12px;font-weight:600;letter-spacing:.05em;
+           text-transform:uppercase;color:var(--muted)}
+  .hint{font-size:12.5px;color:var(--muted)}
+  code{font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px solid var(--border);padding:1px 5px;border-radius:4px}
+
+  header.bar{display:flex;justify-content:space-between;align-items:center;
+       padding:18px 32px;border-bottom:1px solid var(--border);background:var(--surface)}
+  .brand{display:flex;align-items:center;gap:13px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--ink);color:#fff;
+        display:grid;place-items:center;font-size:16px}
+  .brand h1{margin:0;font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.01em}
+  .brand p{margin:1px 0 0;font-size:12.5px;color:var(--muted)}
+  .live{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+  .beacon{width:8px;height:8px;border-radius:50%;background:var(--am);animation:ping 2.4s ease-out infinite}
+  .beacon.down{background:var(--ho);animation:none}
+  @keyframes ping{0%{box-shadow:0 0 0 0 rgba(10,127,87,.5)}70%{box-shadow:0 0 0 6px rgba(10,127,87,0)}100%{box-shadow:0 0 0 0 rgba(10,127,87,0)}}
+
+  main{max-width:1320px;margin:0 auto;padding:26px 32px 64px}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+         box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  .spectrum-panel .panel-head{margin-bottom:20px}
+
+  /* signature: autonomy spectrum */
+  .track{position:relative;height:74px;border-radius:10px;overflow:hidden;outline:1px solid var(--border);outline-offset:-1px}
+  .zones{display:flex;height:100%}
+  .zone{position:relative;display:flex;align-items:flex-end;padding:8px 10px;min-width:0;flex:none;border-right:1px solid rgba(15,20,27,.18)}
+  .zone:last-child{border-right:none}
+  .zone span{font-size:11.5px;font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .z-am{background:rgba(10,127,87,.12)} .z-pr{background:rgba(35,88,230,.10)}
+  .z-af{background:rgba(184,98,9,.13)} .z-ho{background:rgba(207,46,51,.12)}
+  .dots{position:absolute;inset:0;pointer-events:none}
+  .dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;
+       transform:translate(-50%,-50%);pointer-events:auto;box-shadow:0 1px 4px rgba(15,20,27,.28)}
+  .scale{position:relative;height:15px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .scale span{position:absolute}
+  .legend{display:flex;gap:22px;margin-top:16px;flex-wrap:wrap}
+  .legend .item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .legend .swatch{width:10px;height:10px;border-radius:3px}
+  .legend b{font-family:var(--mono);color:var(--ink);font-weight:600;margin-left:1px}
+
+  /* instrument readouts */
+  .readouts{display:flex;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);
+            border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden}
+  .readout{flex:1 1 0;min-width:118px;padding:16px 18px;border-left:1px solid var(--border)}
+  .readout:first-child{border-left:none}
+  .readout .val{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.01em;line-height:1.15}
+  .readout .lbl{font-size:12px;font-weight:500;color:var(--muted);margin-top:6px}
+  .readout .val.pos{color:var(--am)} .readout .val.warn{color:var(--af)} .readout .val.act{color:var(--af)}
+  .readout.assumption{cursor:help}
+
+  /* channels */
+  .channels{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:9px;
+        padding:7px 12px;font-size:13px;font-weight:600;background:var(--surface);line-height:1.2}
+  .chip .d{width:7px;height:7px;border-radius:50%;flex:none}
+  .chip.active .d{background:var(--am);box-shadow:0 0 0 3px rgba(10,127,87,.14)}
+  .chip.planned{color:var(--faint);background:var(--surface-2);border-style:dashed}
+  .chip.planned .d{background:transparent;border:1px solid var(--faint);box-shadow:none}
+  .chip .k{color:var(--faint);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+
+  /* buttons + inputs */
+  .btn{font-family:var(--body);font-size:13.5px;font-weight:500;border-radius:8px;padding:8px 15px;
+       cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+  .btn:hover{background:var(--surface-2)}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.primary:hover{background:#232a34}
+  .btn:disabled,.btn.primary:disabled{background:#EEF1F5;border-color:#E2E7EE;color:#9AA3AE;cursor:default}
+  .btn.sm{padding:6px 12px;font-size:13px}
+  .discovery-actions,.select-actions{display:flex;gap:9px;flex-wrap:wrap}
+  :focus-visible{outline:2px solid var(--pr);outline-offset:2px}
+
+  /* board */
+  #board{margin-top:18px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  thead th{border-bottom:1px solid var(--border)}
+  th{font-size:11.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+     color:var(--muted);text-align:left;padding:0 12px 10px}
+  td{padding:12px;border-top:1px solid var(--border);vertical-align:middle}
+  tbody tr:not(.detail):hover td{background:#FAFBFD}
+  .caret{background:none;border:none;cursor:pointer;color:var(--faint);font-size:11px;padding:0 7px 0 0}
+  .issue-cell{display:flex;align-items:center;gap:9px}
+  .issue-title{font-weight:500;min-width:0;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .issue-src{flex:none;font-size:11px;color:var(--faint);background:var(--surface-2);
+       border:1px solid var(--border);border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .issue-sub{font-size:12px;color:var(--faint);margin-top:2px}
+  .hitl{font-family:var(--mono);font-weight:600;font-size:16px}
+  .tier-tag{font-size:12.5px;font-weight:600;padding:2px 9px;border-radius:6px;white-space:nowrap}
+  .pill{font-size:12.5px;padding:3px 11px;border-radius:999px;font-weight:500;white-space:nowrap;
+        background:#EBEEF3;color:var(--muted)}
+  .pill.live{background:rgba(184,98,9,.15);color:var(--af)}
+  .pill.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+        background:var(--af);margin-right:6px;animation:ping 1.8s ease-out infinite}
+  .pill.act{background:rgba(184,98,9,.16);color:var(--af);font-weight:600}
+  .pill.ok{background:rgba(10,127,87,.15);color:var(--am)}
+  .pill.bad,.pill.esc{background:rgba(207,46,51,.13);color:var(--ho)}
+  .links{display:flex;flex-wrap:nowrap;gap:6px;align-items:center}
+  .lnk{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;white-space:nowrap;
+       padding:3px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--muted)}
+  .lnk:hover{text-decoration:none;border-color:#CBD3DE;color:var(--ink);background:var(--surface)}
+  .lnk .ar{font-size:9.5px;opacity:.6}
+  .lnk.pr{color:var(--pr);font-weight:600;background:color-mix(in srgb,var(--pr) 7%,var(--surface));
+          border-color:color-mix(in srgb,var(--pr) 26%,var(--border))}
+  .lnk.pr.reviewed::after{content:"✓";color:var(--am);font-weight:700;margin-left:1px}
+  .empty{padding:48px 20px;text-align:center;color:var(--muted)}
+  .empty b{display:block;color:var(--ink);font-family:var(--display);font-size:17px;font-weight:500;margin-bottom:5px}
+  input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);cursor:pointer}
+  .foot{font-size:12px;color:var(--faint);margin-top:14px}
+
+  /* row drill-down */
+  .detail td{background:var(--surface-2);padding:0 16px 14px 34px;border-top:none}
+  .detail-box{padding:14px 0}
+  .d-axes{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:10px;font-size:12.5px;color:var(--muted)}
+  .d-axis b{color:var(--ink);font-weight:600}
+  .d-row{font-size:13px;margin-top:7px;color:var(--ink)}
+  .d-k{display:inline-block;min-width:82px;color:var(--muted);font-weight:600;font-size:12px}
+  .d-risks{margin:5px 0 0 90px;padding:0}
+  .d-err{color:var(--ho)}
+
+  /* configuration */
+  summary{list-style:none;cursor:pointer} summary::-webkit-details-marker{display:none}
+  summary .eyebrow::before{content:"▸ ";color:var(--faint)}
+  details[open] summary .eyebrow::before{content:"▾ "}
+  .cfg{margin-top:18px;display:grid;gap:20px}
+  .cfg-group-title{font-weight:600;font-size:13px;color:var(--ink);margin-bottom:11px}
+  .cfg-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:13px}
+  .cfg-field{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
+  .cfg-field input,.cfg-field select{font-family:var(--body);font-size:13.5px;padding:8px 10px;
+     border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink)}
+  .cfg-bool{flex-direction:row;align-items:center;gap:9px;color:var(--ink);font-size:13.5px}
+  .cfg-actions{display:flex;align-items:center;gap:13px;margin-top:20px}
+  .saved{font-size:13px;font-weight:500;color:var(--am)}
+
+  /* clear-tasks modal */
+  .btn.danger{color:var(--ho);border-color:#EAC7C9}
+  .btn.danger:hover{background:rgba(207,46,51,.06)}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,20,27,.45);display:flex;
+       align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-overlay[hidden]{display:none}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+       box-shadow:0 20px 60px rgba(15,20,27,.25);max-width:440px;padding:24px}
+  .modal h2{margin:0 0 10px;font-family:var(--display);font-size:18px;font-weight:600}
+  .modal p{margin:0 0 20px;font-size:13.5px;color:var(--muted);line-height:1.6}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px}
+  .btn.danger-solid{background:var(--ho);border-color:var(--ho)}
+  .btn.danger-solid:hover{background:#B8282D}
+
+  @media (max-width:720px){ main{padding:18px} .zone span{display:none} }
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <div class="logo">◐</div>
+    <div><h1>Triage Console</h1><p>Calibrated autonomy for code remediation</p></div>
+  </div>
+  <div class="live"><span class="beacon" id="beacon"></span><span id="clock">connecting…</span></div>
+</header>
+
+<main>
+  <section class="panel spectrum-panel">
+    <div class="panel-head">
+      <span class="eyebrow">Autonomy spectrum</span>
+      <span class="hint">HITL requirement · 0–100 · more human oversight needed →</span>
+    </div>
+    <div class="track">
+      <div class="zones" id="zones"></div>
+      <div class="dots" id="dots"></div>
+    </div>
+    <div class="scale" id="scale"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="readouts" id="readouts"></section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="eyebrow">Discovery channels</span>
+      <div class="discovery-actions">
+        <span id="autoBadge" style="display:flex;align-items:center"></span>
+        <button class="btn" id="pullBtn" onclick="trigger('github', this)">Pull GitHub issues</button>
+        <button class="btn" onclick="trigger('sample', this)">Load sample</button>
+      </div>
+    </div>
+    <div class="channels" id="channels"></div>
+    <p class="hint" style="margin-top:13px">Scan channels (pip-audit, bandit) run in CI or via the CLI — <code>scripts/seed_issues.py --mode pip-audit</code>. The event &amp; pull channels (GitHub issues, sample) run from here.</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="eyebrow">Pipeline</span>
+      <div class="select-actions">
+        <button class="btn sm" onclick="selectAll()">Select all candidates</button>
+        <button class="btn sm" id="triageBtn" onclick="runSelected('triage')" disabled>Triage only</button>
+        <button class="btn primary sm" id="runBtn" onclick="runSelected('remediate')" disabled>Run Devin on 0 selected</button>
+      </div>
+    </div>
+    <div id="board"></div>
+    <div class="foot" id="foot"></div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary class="panel-head">
+        <span class="eyebrow">Configuration</span>
+        <span class="hint">autonomy thresholds · cost guardrails · estimates · issue source</span>
+      </summary>
+      <div class="cfg" id="cfgForm"></div>
+      <div class="cfg-actions">
+        <button class="btn primary sm" onclick="saveConfig()">Save configuration</button>
+        <span class="saved" id="cfgSaved"></span>
+        <button class="btn sm danger" style="margin-left:auto" onclick="openModal()">Clear all tasks</button>
+      </div>
+    </details>
+  </section>
+</main>
+
+<div class="modal-overlay" id="modal" hidden onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">Clear all tasks?</h2>
+    <p>This removes every task from the pipeline — the board, the autonomy spectrum, and all
+       metrics reset to empty. It <b>does not</b> delete the GitHub issues or change your
+       configuration, and Devin sessions already running aren't stopped — just no longer tracked here.</p>
+    <div class="modal-actions">
+      <button class="btn sm" onclick="closeModal()">Cancel</button>
+      <button class="btn primary sm danger-solid" onclick="confirmReset()">Clear all tasks</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TIER={auto_merge:'var(--am)',auto_pr:'var(--pr)',approve_first:'var(--af)',human_only:'var(--ho)'};
+const TIER_LABEL={auto_merge:'auto-merge',auto_pr:'auto-PR',approve_first:'approve-first',human_only:'human-only'};
+const LIVE=new Set(['queued','triaging','remediating','in_review']);
+const selected=new Set();
+const expanded=new Set();
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tierColor=t=>TIER[t]||'var(--faint)';
+
+const CONFIG_GROUPS=[
+  {title:'Autonomy thresholds (HITL score → tier)', fields:[
+    ['hitl_auto_merge_below','Auto-merge below','number'],
+    ['hitl_auto_pr_below','Auto-PR below','number'],
+    ['hitl_approve_first_below','Approve-first below','number'],
+    ['enable_auto_merge','Enable auto-merge (auto_merge tier only)','bool'],
+    ['autonomous_mode','Autonomous mode — skip manual selection','bool'],
+  ]},
+  {title:'Execution & cost guardrails', fields:[
+    ['max_concurrent_sessions','Max concurrent sessions','number'],
+    ['max_acu_per_session','Max ACU / remediation','number'],
+    ['max_acu_triage','Max ACU / triage','number'],
+    ['devin_mode','Devin mode','select:normal,fast,lite,ultra'],
+    ['poll_interval_seconds','Poll interval (seconds)','number'],
+  ]},
+  {title:'Estimation assumptions (hours saved)', fields:[
+    ['engineer_hours_per_fix','Hours saved per fix','number'],
+  ]},
+  {title:'Issue source (GitHub channel)', fields:[
+    ['issue_source_repo','Source repo','text'],
+    ['issue_source_labels','Label filter','text'],
+    ['issue_source_numbers','Specific issue numbers','text'],
+    ['issue_pull_limit','Pull limit','number'],
+  ]},
+];
+
+function toggle(id,on){on?selected.add(id):selected.delete(id);renderRun();}
+function toggleDetail(id){expanded.has(id)?expanded.delete(id):expanded.add(id);tick();}
+function selectAll(){document.querySelectorAll('input[data-id]').forEach(c=>{selected.add(c.dataset.id);c.checked=true;});renderRun();}
+function renderRun(){const b=document.getElementById('runBtn');b.textContent=`Run Devin on ${selected.size} selected`;b.disabled=!selected.size;const t=document.getElementById('triageBtn');if(t)t.disabled=!selected.size;}
+async function runSelected(mode){if(!selected.size)return;await post('/run',{task_ids:[...selected],mode});selected.clear();renderRun();tick();}
+async function remediateTask(id){await post('/run',{task_ids:[id],mode:'remediate'});tick();}
+async function retryTask(id,btn){btn.disabled=true;btn.textContent='Retrying…';try{await fetch('/api/retry/'+encodeURIComponent(id),{method:'POST'});}finally{await tick();}}
+async function approve(id){await fetch('/approve/'+encodeURIComponent(id),{method:'POST'});tick();}
+async function post(url,body){return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+async function trigger(mode,btn){const t=btn.textContent;btn.textContent='Working…';btn.disabled=true;try{await fetch('/trigger/scan?mode='+mode,{method:'POST'});await tick();}finally{btn.textContent=t;btn.disabled=false;}}
+function openModal(){document.getElementById('modal').hidden=false;}
+function closeModal(){document.getElementById('modal').hidden=true;}
+async function confirmReset(){await fetch('/api/reset',{method:'POST'});selected.clear();expanded.clear();closeModal();tick();}
+
+function renderSpectrum(tasks,cfg){
+  const t1=cfg.hitl_auto_merge_below,t2=cfg.hitl_auto_pr_below,t3=cfg.hitl_approve_first_below;
+  document.getElementById('zones').innerHTML=[
+    ['am','auto-merge',t1],['pr','auto-PR',t2-t1],['af','approve-first',t3-t2],['ho','human-only',100-t3]
+  ].map(([c,l,w])=>`<div class="zone z-${c}" style="width:${Math.max(w,1)}%"><span>${l}</span></div>`).join('');
+  document.getElementById('scale').innerHTML=[0,t1,t2,t3,100].map(x=>{
+    const tx=x===0?'0':x===100?'-100%':'-50%';
+    return `<span style="left:${x}%;transform:translateX(${tx})">${x}</span>`;
+  }).join('');
+  document.getElementById('dots').innerHTML=tasks.filter(t=>t.hitl_score!=null).map(t=>
+    `<span class="dot" style="left:${t.hitl_score}%;background:${tierColor(t.tier)}"
+       title="${esc(t.finding.title)} · HITL ${t.hitl_score} · ${TIER_LABEL[t.tier]||''}"></span>`).join('');
+}
+function renderLegend(byTier){
+  document.getElementById('legend').innerHTML=['auto_merge','auto_pr','approve_first','human_only'].map(t=>
+    `<span class="item"><span class="swatch" style="background:${tierColor(t)}"></span>${TIER_LABEL[t]} <b>${byTier[t]||0}</b></span>`).join('');
+}
+function renderReadouts(m){
+  const s=m.by_status||{},inflight=['queued','triaging','remediating','in_review'].reduce((a,k)=>a+(s[k]||0),0);
+  const items=[
+    ['Candidates',m.candidates,'',''],
+    ['In flight',inflight,'',''],
+    ['To approve',s.awaiting_approval||0,'act','Tasks waiting for a human to approve remediation'],
+    ['PRs opened',m.prs_opened,'pos',''],
+    ['Merged',m.merged,'pos',''],
+    ['Success',m.success_rate==null?'—':Math.round(m.success_rate*100)+'%','pos','Share of finished tasks that opened a PR'],
+    ['Hours saved (est.)',m.engineer_hours_saved,'pos','Estimate, from a configurable per-fix assumption in Configuration'],
+  ];
+  document.getElementById('readouts').innerHTML=items.map(([l,v,c,tip])=>
+    `<div class="readout ${tip?'assumption':''}" ${tip?`title="${tip}"`:''}><div class="val ${c}">${v}</div><div class="lbl">${l}</div></div>`).join('');
+}
+function renderChannels(channels){
+  const rank={active:0,planned:1};
+  document.getElementById('channels').innerHTML=[...channels]
+    .sort((a,b)=>(rank[a.status]??9)-(rank[b.status]??9))
+    .map(c=>`<span class="chip ${esc(c.status)}" title="${esc(c.description)}"><span class="d"></span>${esc(c.name)}<span class="k">${esc(c.kind)}</span></span>`).join('');
+}
+function statusPill(s){if(s==='succeeded'||s==='merged')return'ok';if(s==='failed')return'bad';if(s==='escalated')return'esc';if(s==='awaiting_approval')return'act';if(LIVE.has(s))return'live';return'';}
+function detailHtml(t){
+  const parts=[];
+  if(t.triage){
+    const a=t.triage;
+    parts.push(`<div class="d-axes">${['blast_radius','reversibility','verifiability','ambiguity','test_coverage'].map(k=>`<span class="d-axis">${k.replace(/_/g,' ')}: <b>${esc(a[k])}</b></span>`).join('')}</div>`);
+    if(a.rationale)parts.push(`<div class="d-row"><span class="d-k">Rationale</span> ${esc(a.rationale)}</div>`);
+    if(a.risks&&a.risks.length)parts.push(`<div class="d-row"><span class="d-k">Risks</span><ul class="d-risks">${a.risks.map(r=>`<li>${esc(r)}</li>`).join('')}</ul></div>`);
+  }
+  if(t.summary)parts.push(`<div class="d-row"><span class="d-k">Summary</span> ${esc(t.summary)}</div>`);
+  if(t.error)parts.push(`<div class="d-row d-err"><span class="d-k">Error</span> ${esc(t.error)}</div>`);
+  const links=[];
+  if(t.triage_session_url)links.push(`<a href="${esc(t.triage_session_url)}" target="_blank">triage session ↗</a>`);
+  if(t.remediation_session_url)links.push(`<a href="${esc(t.remediation_session_url)}" target="_blank">remediation session ↗</a>`);
+  if(links.length)parts.push(`<div class="d-row"><span class="d-k">Devin</span> ${links.join(' · ')}</div>`);
+  if(!parts.length)parts.push(`<div class="d-row" style="color:var(--faint)">Not yet triaged — no details.</div>`);
+  return parts.join('');
+}
+function renderBoard(tasks){
+  // prune selections that are no longer selectable candidates
+  const cand=new Set(tasks.filter(t=>t.status==='discovered').map(t=>t.task_id));
+  [...selected].forEach(id=>{if(!cand.has(id))selected.delete(id);});
+  if(!tasks.length){document.getElementById('board').innerHTML=`<div class="empty"><b>No issues yet</b>Pull from a channel above to start triaging.</div>`;return;}
+  const rows=tasks.map(t=>{
+    const cb=t.status==='discovered'?`<input type="checkbox" data-id="${esc(t.task_id)}" ${selected.has(t.task_id)?'checked':''} onchange="toggle('${esc(t.task_id)}',this.checked)">`:'';
+    const caret=`<button class="caret" title="Details" onclick="toggleDetail('${esc(t.task_id)}')">${expanded.has(t.task_id)?'▾':'▸'}</button>`;
+    const issue=t.issue_url?`<a href="${esc(t.issue_url)}" target="_blank">${esc(t.finding.title)}</a>`:esc(t.finding.title);
+    const hitl=t.hitl_score==null?'<span style="color:var(--faint)">—</span>':`<span class="hitl" style="color:${tierColor(t.tier)}">${t.hitl_score}</span>`;
+    const tier=t.tier?`<span class="tier-tag" style="color:${tierColor(t.tier)};background:color-mix(in srgb, ${tierColor(t.tier)} 13%, transparent)">${TIER_LABEL[t.tier]}</span>`:'—';
+    const sev=t.finding.severity==='unknown'?'<span style="color:var(--faint)">—</span>':esc(t.finding.severity);
+    const links=[];
+    if(t.triage_session_url)links.push(`<a class="lnk" href="${esc(t.triage_session_url)}" target="_blank" title="Devin triage session">triage<span class="ar">↗</span></a>`);
+    if(t.remediation_session_url)links.push(`<a class="lnk" href="${esc(t.remediation_session_url)}" target="_blank" title="Devin remediation session">fix<span class="ar">↗</span></a>`);
+    if(t.pr_url)links.push(`<a class="lnk pr${t.review_status==='clean'?' reviewed':''}" href="${esc(t.pr_url)}" target="_blank" title="${t.review_status==='clean'?'Pull request · Devin self-reviewed clean':'Pull request'}">PR<span class="ar">↗</span></a>`);
+    const act=links.length?`<div class="links">${links.join('')}</div>`:'<span style="color:var(--faint)">—</span>';
+    let action='';
+    if(t.status==='awaiting_approval')action=`<button class="btn primary sm" onclick="approve('${esc(t.task_id)}')">Approve</button>`;
+    else if(t.status==='triaged')action=`<button class="btn sm" onclick="remediateTask('${esc(t.task_id)}')">Remediate</button>`;
+    else if(t.status==='failed')action=`<button class="btn sm" onclick="retryTask('${esc(t.task_id)}',this)">Retry</button>`;
+    const main=`<tr>
+      <td>${cb}</td>
+      <td class="issue-cell-td"><div class="issue-cell">${caret}<span class="issue-title" title="${esc(t.finding.title)}">${issue}</span><span class="issue-src">${esc(t.finding.source)}</span></div></td>
+      <td>${sev}</td><td>${hitl}</td><td>${tier}</td>
+      <td><span class="pill ${statusPill(t.status)}">${esc(t.status.replace(/_/g,' '))}</span></td>
+      <td>${act}</td><td>${action}</td></tr>`;
+    const detail=expanded.has(t.task_id)?`<tr class="detail"><td colspan="8"><div class="detail-box">${detailHtml(t)}</div></td></tr>`:'';
+    return main+detail;
+  }).join('');
+  document.getElementById('board').innerHTML=`<table><thead><tr><th></th><th>Issue</th><th>Sev</th><th>HITL</th><th>Tier</th><th>Status</th><th>Devin / PR</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function buildSettings(cfg){
+  document.getElementById('cfgForm').innerHTML=CONFIG_GROUPS.map(g=>`
+    <div class="cfg-group"><div class="cfg-group-title">${g.title}</div><div class="cfg-fields">
+    ${g.fields.map(([k,label,type])=>fieldHtml(k,label,type,cfg[k])).join('')}</div></div>`).join('');
+}
+function fieldHtml(k,label,type,val){
+  if(type==='bool')return `<label class="cfg-bool"><input type="checkbox" id="cfg_${k}" ${val?'checked':''}><span>${label}</span></label>`;
+  if(type.startsWith('select:'))return `<label class="cfg-field"><span>${label}</span><select id="cfg_${k}">${type.slice(7).split(',').map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
+  const input=type==='number'?`<input type="number" min="0" id="cfg_${k}" value="${esc(val)}">`:`<input type="text" id="cfg_${k}" value="${esc(val)}">`;
+  return `<label class="cfg-field"><span>${label}</span>${input}</label>`;
+}
+async function saveConfig(){
+  const patch={};
+  CONFIG_GROUPS.forEach(g=>g.fields.forEach(([k,_l,type])=>{const el=document.getElementById('cfg_'+k);if(el)patch[k]=type==='bool'?el.checked:el.value;}));
+  await post('/api/config',patch);
+  const n=document.getElementById('cfgSaved');n.textContent='Saved ✓';setTimeout(()=>n.textContent='',1800);
+  tick();
+}
+function setLive(ok){
+  document.getElementById('beacon').classList.toggle('down',!ok);
+  document.getElementById('clock').textContent=ok?('live · '+new Date().toLocaleTimeString()):'disconnected — retrying…';
+}
+async function tick(){
+  try{
+    const [m,tasks,channels,cfg]=await Promise.all([
+      fetch('/api/metrics').then(r=>r.json()),fetch('/api/tasks').then(r=>r.json()),
+      fetch('/api/channels').then(r=>r.json()),fetch('/api/config').then(r=>r.json()),
+    ]);
+    renderSpectrum(tasks,cfg);renderLegend(m.by_tier||{});renderReadouts(m);
+    renderChannels(channels);renderBoard(tasks);renderRun();
+    if(!window._cfgBuilt){buildSettings(cfg);window._cfgBuilt=true;}
+    document.getElementById('pullBtn').title='Source: '+(cfg.issue_source_repo||'');
+  document.getElementById('autoBadge').innerHTML = cfg.autonomous_mode ? '<span class="pill ok" title="Discovered candidates run straight through — no manual selection">⚡ Autonomous</span>' : '';
+    setLive(true);
+    document.getElementById('foot').textContent=`${m.triaged} triaged · ${m.prs_opened} PRs opened · ${m.merged} merged · ~${m.engineer_hours_saved} engineer-hours saved (estimate)`;
+  }catch(e){ setLive(false); }
+}
+tick();setInterval(tick,5000);
+</script>
+</body>
+</html>
