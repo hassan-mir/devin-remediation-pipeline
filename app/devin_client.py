@@ -27,8 +27,9 @@ TERMINAL_STATUSES = {"exit", "error", "finished"}
 class DevinClient:
     def __init__(self, api_key: str, org_id: str, base_url: str = "https://api.devin.ai/v3",
                  timeout: float = 30.0):
-        if not api_key or not org_id:
-            raise ValueError("DEVIN_API_KEY and DEVIN_ORG_ID are required")
+        # Construction never fails, so the dashboard boots for inspection without credentials.
+        # A missing key/org only errors when a real Devin API call is made (guarded in _request).
+        self._api_key, self._org_id = api_key, org_id
         self._org_base = f"{base_url.rstrip('/')}/organizations/{org_id}"
         self._client = httpx.Client(
             timeout=timeout,
@@ -38,6 +39,8 @@ class DevinClient:
     # --- internal: request with simple backoff on 429 / 5xx ---
     def _request(self, method: str, path: str, *, json: Optional[dict] = None,
                  params: Optional[dict] = None, retries: int = 4) -> dict:
+        if not self._api_key or not self._org_id:
+            raise RuntimeError("DEVIN_API_KEY and DEVIN_ORG_ID must be set to use the Devin API")
         url = f"{self._org_base}{path}"
         delay = 2.0
         for attempt in range(retries + 1):

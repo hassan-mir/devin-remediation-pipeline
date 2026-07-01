@@ -11,6 +11,24 @@ human." A live dashboard reports both the trust signals and the throughput.
 
 ---
 
+## Quick start
+
+**Just explore it (no credentials needed):**
+
+```bash
+docker compose up --build          # then open http://localhost:8000
+curl -X POST "http://localhost:8000/trigger/scan?mode=sample"   # or click "Load sample" on the page
+```
+
+The dashboard, the autonomy spectrum, and the metrics all populate from sample data with no keys,
+and the one-page architecture diagram is at `/architecture`. The app boots without credentials;
+Devin is only called once you run remediation.
+
+**Run Devin for real:** fill `.env` (a Devin key + org id, and a GitHub PAT) as described under
+[Setup](#setup), then trigger real issues from the dashboard or by labelling a GitHub issue.
+
+---
+
 ## Why this design
 
 The hard part of an autonomous backlog is not writing each fix — it is deciding *which work
@@ -83,8 +101,10 @@ entirely — discovery flows straight into triage → remediation. The HITL poli
 task, so only safe changes auto-fix; risky ones still escalate or wait for approval.
 
 For repo-native triggering, copy `examples/github-actions-trigger.yml` into the target repo's
-`.github/workflows/` and set a `PIPELINE_WEBHOOK_URL` secret; it forwards labelled-issue events
-to the pipeline. The webhook and `scripts/simulate_event.py` work without it.
+`.github/workflows/` and set a `PIPELINE_WEBHOOK_URL` secret pointing at your pipeline. Because
+the pipeline runs locally, expose it with a tunnel such as `ngrok http 8000` and set
+`PIPELINE_WEBHOOK_URL` to that public URL, so a labelled issue reaches your local instance via
+the Action. The webhook and `scripts/simulate_event.py` work without it.
 
 > **Hardening:** `/webhook/github` verifies an HMAC signature only when `GITHUB_WEBHOOK_SECRET`
 > is set (unset is fine for a local demo, where the endpoint is unauthenticated). The bundled
